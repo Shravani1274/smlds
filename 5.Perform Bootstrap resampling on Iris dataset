@@ -1,0 +1,28 @@
+DOWNLOAD IRIS DATSET
+
+from google.colab import files
+uploaded = files.upload()
+
+
+# Import libraries
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.datasets import load_iris
+
+# Load Iris dataset
+data = load_iris(as_frame=True).frame['sepal length (cm)']
+
+# Perform bootstrap resampling
+means = [np.mean(np.random.choice(data, len(data), replace=True)) for _ in range(1000)]
+
+# Display results
+print("Original Mean:", data.mean())
+print("Bootstrap Mean:", np.mean(means))
+print("Standard Error:", np.std(means))
+
+# Plot bootstrap distribution
+plt.hist(means, bins=30, edgecolor='black')
+plt.title("Bootstrap Resampling on Iris Dataset")
+plt.xlabel("Sample Mean")
+plt.ylabel("Frequency")
+plt.show()
