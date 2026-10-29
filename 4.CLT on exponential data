@@ -1,0 +1,17 @@
+DOWNLOAD THE EXPONENTIAL DATASET
+
+UPLOAD DATSET
+from google.colab import files
+uploaded = files.upload()
+
+
+  
+import numpy as np
+import matplotlib.pyplot as plt
+
+data = np.random.exponential(2, 10000)
+means = [np.mean(np.random.choice(data, 30)) for _ in range(1000)]
+
+plt.hist(means, bins=30, edgecolor='black')
+plt.title("CLT on Exponential Data")
+plt.show()
