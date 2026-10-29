@@ -1,0 +1,50 @@
+for dataset 
+Search for Customer Personality Analysis or another customer dataset.
+
+
+from google.colab import files
+uploaded = files.upload()                      
+SELECT THE DATSET FILE
+
+import pandas as pd
+# Load the dataset
+df = pd.read_csv('DATASET FILE NAME EG:CUSTOMER.CSV')
+# Display the first five rows
+print(df.head())
+
+import matplotlib.pyplot as plt
+# Plot histograms for numeric columns
+df.hist(figsize=(8, 5), bins=15)
+plt.suptitle("Histograms of Numeric Columns")
+plt.tight_layout()
+plt.show()
+
+# Select only numeric columns
+numeric_df = df.select_dtypes(include='number')
+# Display numeric column names
+print("Numeric Columns:")
+print(numeric_df.columns)
+# Display the numeric data
+print("\nNumeric Data:")
+print(numeric_df.head())
+
+
+# Compute the correlation matrix
+correlation_matrix = numeric_df.corr()
+# Display the correlation matrix
+print("Correlation Matrix:")
+print(correlation_matrix)
+
+
+# Plot the correlation heatmap
+import seaborn as sns
+import matplotlib.pyplot as plt
+plt.figure(figsize=(8, 6))
+sns.heatmap(
+    correlation_matrix,
+    annot=True,
+    cmap='coolwarm',
+    fmt='.2f'
+)
+plt.title("Correlation Heatmap")
+plt.show()
