@@ -1,0 +1,20 @@
+DOWNLOAD IRIS DATSET
+
+from google.colab import files
+uploaded = files.upload()
+
+
+# Import libraries
+import numpy as np
+from sklearn.datasets import load_iris
+
+# Load Iris dataset
+data = load_iris().data[:, 0]
+
+# Calculate MLE
+mean = np.mean(data)
+variance = np.var(data)
+
+# Display results
+print("MLE Mean:", mean)
+print("MLE Variance:", variance)
