@@ -1,0 +1,23 @@
+DOWNLOAD THE SOCIAL NETWORK ADS .CSV DATASET
+
+from google.colab import files
+uploaded = files.upload()
+
+# Import libraries
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.cluster import KMeans
+
+# Load dataset
+df = pd.read_csv('Social_Network_Ads.csv')
+X = df[['Age', 'EstimatedSalary']]
+
+# Apply clustering
+df['Cluster'] = KMeans(n_clusters=3, random_state=42, n_init=10).fit_predict(X)
+
+# Plot clusters
+plt.scatter(X['Age'], X['EstimatedSalary'], c=df['Cluster'])
+plt.xlabel('Age')
+plt.ylabel('Estimated Salary')
+plt.title('K-Means Clustering')
+plt.show()
