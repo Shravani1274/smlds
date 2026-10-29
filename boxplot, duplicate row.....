@@ -1,0 +1,45 @@
+DOWNLOAD DATSET UPLOAD IT
+from google.colab import files
+uploaded = files.upload()
+
+
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+# Load the dataset
+df = pd.read_csv('customer.csv')
+# Display the first five rows
+print(df.head())
+
+
+# Check the number of duplicate rows
+print("Duplicate rows:", df.duplicated().sum())
+# Remove exact duplicate rows
+df = df.drop_duplicates()
+# Display the number of rows after removing duplicates
+print("Shape after removing duplicates:", df.shape)
+# Display the first five rows
+print(df.head())
+
+
+TO DISPLAY Replace "XXXX" with NaN
+MY DATSET DOESNT CONTAIN LIFE SPAN COLUMN 
+......
+# Replace XXXX with NaN
+df['Customer_Lifespan_Months'] = df['Customer_Lifespan_Months'].replace('XXXX', np.nan)
+# Display the column to verify
+print(df['Customer_Lifespan_Months'].head(10))
+# Count missing values in this column
+print("Missing values:", df['Customer_Lifespan_Months'].isna().sum())
+
+
+TO DISPLAY DATE COLUMN 
+MY DATSET DOESNT CONTAIN DATE COLUMN 
+
+# Display the column names to identify the date column
+print(df.columns.tolist())
+For example, if your date column is named Join_Date, the conversion code would be:
+df['Join_Date'] = pd.to_datetime(df['Join_Date'], errors='coerce')
+
