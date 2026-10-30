@@ -1,0 +1,387 @@
+SMLD Practical Exam Pack
+Code sheet, line-by-line check and viva questions for all 7 practicals
+Before you run anything
+•	Put the CSV in the same folder as your notebook, or paste the full path. Filenames used: customer_data.csv, penguins_size.csv, iris.csv, Social_Network_Ads.csv.
+•	Run print(df.columns) first. A KeyError means a column name differs from the one in the code. Change only that name.
+•	Practical 2 depends most on the real file. Check the spelling of Customer_Lifespan_Months, and which column holds dates.
+•	How this was checked: all seven scripts ran without errors on stand-in CSVs I generated with the same column names, including a placeholder "XXXX", a duplicate row, a bad date and missing values. I did not have your teacher's real files.
+ 
+Part A: Exam-ready code sheet
+Practical 1
+Question: Perform the following in customer_data.csv
+•	Histogram
+•	Select only numeric columns
+•	Compute correlation matrix
+•	Plot heatmap
+
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+ 
+df = pd.read_csv("customer_data.csv")      # use the exact filename given
+print(df.columns.tolist())
+ 
+# Select only numeric columns (needed before the histogram)
+num = df.select_dtypes(include="number")
+ 
+# Histogram
+num.hist(figsize=(10, 6))
+plt.tight_layout()
+plt.show()
+ 
+# Compute correlation matrix
+corr = num.corr()
+print(corr)
+ 
+# Plot heatmap
+sns.heatmap(corr, annot=True, cmap="coolwarm")
+plt.title("Correlation Heatmap")
+plt.show()
+Note: Run first: print(df.columns). Expect one histogram per numeric column and a square heatmap.
+Practical 2
+Question: Perform the following in customer_data.csv
+•	Drop exact duplicate rows (e.g. C021 appears twice)
+•	'Customer_Lifespan_Months' has an invalid placeholder "XXXX" -> convert to NaN
+•	Parse date column properly
+•	Fill missing values
+•	Label Encoding
+•	Outliers making use of box plot
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.preprocessing import LabelEncoder
+ 
+df = pd.read_csv("customer_data.csv")
+print(df.shape)
+print(df.columns.tolist())
+df.info()
+ 
+# Task 1: Drop exact duplicate rows (e.g. C021 appears twice)
+print("Duplicate rows:", df.duplicated().sum())
+df = df.drop_duplicates()
+ 
+# Task 2: Invalid placeholder "XXXX" -> NaN
+df = df.replace("XXXX", np.nan)
+df["Customer_Lifespan_Months"] = pd.to_numeric(
+    df["Customer_Lifespan_Months"], errors="coerce")
+ 
+# Task 3: Parse date column properly (any column with 'date' in its name)
+date_cols = [c for c in df.columns if "date" in c.lower()]
+for c in date_cols:
+    df[c] = pd.to_datetime(df[c], errors="coerce")
+df.info()
+ 
+# Task 4: Fill missing values (check first, then fill)
+print(df.isnull().sum())
+sns.heatmap(df.isnull(), cbar=False, cmap="viridis")
+plt.title("Missing Values")
+plt.show()
+ 
+num_cols = df.select_dtypes(include="number").columns
+cat_cols = df.select_dtypes(exclude=["number", "datetime"]).columns
+ 
+df[num_cols] = df[num_cols].fillna(df[num_cols].median())   # numeric -> median
+for c in cat_cols:                                          # text -> mode
+    if df[c].isnull().any():
+        df[c] = df[c].fillna(df[c].mode()[0])
+for c in date_cols:                                         # dates -> median date
+    df[c] = df[c].fillna(df[c].median())
+print("Missing after filling:", df.isnull().sum().sum())
+ 
+# Task 5: Label Encoding (text columns with few categories, e.g. Gender)
+for c in cat_cols:
+    if df[c].nunique() < 10:
+        df[c + "_encoded"] = LabelEncoder().fit_transform(df[c])
+print(df.head())
+ 
+# Task 6: Outliers using box plots
+fig, axes = plt.subplots(1, len(num_cols), figsize=(4 * len(num_cols), 4))
+axes = np.atleast_1d(axes)
+for ax, c in zip(axes, num_cols):
+    sns.boxplot(y=df[c], ax=ax)
+    ax.set_title(c)
+plt.tight_layout()
+plt.show()
+Note: If Customer_Lifespan_Months or the date column has a different name, change only that name. If most dates become NaT, add dayfirst=True to pd.to_datetime.
+Practical 3
+Question: Perform simple and stratified sampling on penguin dataset
+
+import pandas as pd
+ 
+df = pd.read_csv("penguins_size.csv")
+df = df.dropna(subset=["body_mass_g", "species"])      # avoid NaN results
+ 
+TRUE_MEAN = df["body_mass_g"].mean()
+N = 100
+print(f"Population mean body mass: {TRUE_MEAN:.1f} g")
+ 
+# Task 1: Simple random sampling
+srs = df.sample(n=N, random_state=1)
+srs_mean = srs["body_mass_g"].mean()
+print(f"SRS mean: {srs_mean:.1f} g | error: {abs(srs_mean - TRUE_MEAN):.1f} g")
+ 
+# Task 2: Stratified sampling (proportional, by species)
+parts = []
+for species, group in df.groupby("species"):
+    n_s = max(1, round(N * len(group) / len(df)))
+    parts.append(group.sample(n=n_s, random_state=1))
+strat = pd.concat(parts)
+strat_mean = strat["body_mass_g"].mean()
+print(f"Stratified size: {len(strat)}")
+print(f"Stratified mean: {strat_mean:.1f} g | error: {abs(strat_mean - TRUE_MEAN):.1f} g")
+ 
+# Proportions: population vs stratified sample
+print(pd.DataFrame({
+    "population_%": df["species"].value_counts(normalize=True).round(3),
+    "sample_%": strat["species"].value_counts(normalize=True).round(3)}))
+Note: Stratified total can be 101 because each species count is rounded. Mention this if asked; train_test_split(df, test_size=100, stratify=df['species']) gives exactly 100.
+Practical 4
+Question: CLT on exponential data
+
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+ 
+np.random.seed(42)
+num_samples = 10000      # number of repetitions
+sample_size = 30         # size of each sample
+ 
+# Non-normal population: Exponential (scale = 2 -> mean 2, std 2)
+population = np.random.exponential(scale=2.0, size=num_samples * sample_size)
+ 
+# Mean of each random sample
+sample_means = [np.mean(np.random.choice(population, size=sample_size))
+                for _ in range(num_samples)]
+ 
+print("Population mean:", round(population.mean(), 3))
+print("Mean of sample means:", round(np.mean(sample_means), 3))
+print("Std of sample means:", round(np.std(sample_means), 3),
+      "(theory: 2/sqrt(30) = 0.365)")
+ 
+plt.figure(figsize=(14, 6))
+plt.subplot(1, 2, 1)
+sns.histplot(population, bins=50, kde=True, color="skyblue")
+plt.title("Original Exponential Distribution")
+ 
+plt.subplot(1, 2, 2)
+sns.histplot(sample_means, bins=50, kde=True, color="salmon")
+plt.title(f"Distribution of Sample Means (n={sample_size})")
+plt.show()
+Note: Expected: mean of sample means about 2.0, standard deviation about 0.365 (2 / sqrt(30)).
+Practical 5
+Question: Perform Bootstrap resampling on Iris dataset
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+ 
+df = pd.read_csv("iris.csv")
+print(df.columns.tolist())
+ 
+# finds the petal-length column whatever its exact spelling
+col = [c for c in df.columns if "petal" in c.lower() and "length" in c.lower()][0]
+data = df[col].dropna().to_numpy()
+ 
+np.random.seed(42)
+n_boot = 5000
+boot_means = [np.mean(np.random.choice(data, size=len(data), replace=True))
+              for _ in range(n_boot)]
+ 
+ci_lower, ci_upper = np.percentile(boot_means, [2.5, 97.5])
+obs_mean = data.mean()
+print(f"Observed mean: {obs_mean:.2f}")
+print(f"95% CI: ({ci_lower:.2f}, {ci_upper:.2f})")
+ 
+plt.figure(figsize=(8, 5))
+plt.hist(boot_means, bins=40, color="skyblue", edgecolor="black")
+plt.axvline(ci_lower, color="red", linestyle="--", label=f"Lower CI = {ci_lower:.2f}")
+plt.axvline(ci_upper, color="red", linestyle="--", label=f"Upper CI = {ci_upper:.2f}")
+plt.axvline(obs_mean, color="green", label="Observed Mean")
+plt.title("Bootstrap Distribution of Mean Petal Length")
+plt.xlabel("Mean Petal Length")
+plt.ylabel("Frequency")
+plt.legend()
+plt.show()
+Note: The column finder works for petal_length, PetalLengthCm and 'petal length (cm)'.
+Practical 6
+Question: Calculate MLE on Iris dataset
+
+import pandas as pd
+import numpy as np
+ 
+df = pd.read_csv("iris.csv")
+col = [c for c in df.columns if "petal" in c.lower() and "length" in c.lower()][0]
+data = df[col].dropna().to_numpy()          # REAL Iris data, not synthetic
+ 
+# MLE for a Normal(mu, sigma^2) model
+mu_mle = np.mean(data)                          # (1/n) * sum(x)
+sigma2_mle = np.mean((data - mu_mle) ** 2)      # (1/n) * sum((x-mu)^2)  <- divides by n
+ 
+print(f"MLE Mean (mu): {mu_mle:.4f}")
+print(f"MLE Variance (sigma^2): {sigma2_mle:.4f}")
+Note: MLE variance divides by n, not n-1.
+Practical 7
+Question: Plot the clusters in the dataset on Social_Network_Ads.csv
+
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
+ 
+df = pd.read_csv("Social_Network_Ads.csv")
+X = df[["Age", "EstimatedSalary"]]
+ 
+# Scale so Age and Salary count equally
+X_scaled = StandardScaler().fit_transform(X)
+ 
+# Fit K-Means once
+k = 3
+df["Cluster"] = KMeans(n_clusters=k, n_init=10, random_state=42).fit_predict(X_scaled)
+ 
+# Plot the clusters
+plt.scatter(df["Age"], df["EstimatedSalary"], c=df["Cluster"], cmap="viridis")
+plt.xlabel("Age")
+plt.ylabel("Estimated Salary")
+plt.title("K-Means Clusters")
+plt.show()
+ 
+# Profile of each cluster
+print(df.groupby("Cluster")[["Age", "EstimatedSalary", "Purchased"]].mean().round(2))
+Note: k = 3 is a chosen value, not proven optimal. Scaling is why Age is not ignored.
+ 
+Part B: Line-by-line check
+Each table lists the key lines, what they do, and what I changed from your PDFs. 'OK' means the original was already correct.
+Practical 1
+Line	What it does	Verdict
+pd.read_csv("customer_data.csv")	Loads the file	Fixed. Your PDFs loaded Mall_Customers.csv from a C:\Users\Dell path; the question names customer_data.csv.
+select_dtypes(include="number")	Keeps int and float columns only	OK. Text columns like Customer_ID drop out automatically.
+num.hist()	One histogram per numeric column	OK. Added tight_layout so titles do not overlap.
+num.corr()	Pearson correlation, -1 to +1	OK.
+sns.heatmap(corr, annot=True)	Colours the matrix and prints values	OK. Added a title.
+Practical 2
+Line	What it does	Verdict
+drop_duplicates()	Removes rows identical in every column, keeps the first	OK. Added a count print so you can show C021 was found.
+replace("XXXX") + to_numeric(errors="coerce")	Turns the placeholder into NaN	Fixed. Your PDFs converted Spending_Score; the question names Customer_Lifespan_Months.
+pd.to_datetime(...)	Parses text into real dates	Fixed. Your PDFs parsed Annual_Income (a number) as a date. Now finds every column with 'date' in its name.
+isnull() heatmap	Shows where values are missing	Kept, but it only displays. Your PDFs never filled anything.
+fillna(median / mode)	Numeric to median, text to mode, dates to median date	Added. This was the missing step in the task list.
+LabelEncoder()	Text categories to integers	Fixed. Applied only to text columns with fewer than 10 categories, so Customer_ID is skipped.
+sns.boxplot	Points beyond the whiskers are outliers	Fixed. Your PDFs mixed Annual_Income_(k) and Annual_Income_(k$); now loops over the real numeric columns.
+Practical 3
+Line	What it does	Verdict
+dropna(subset=[...])	Removes rows with no body mass	Added. NaN rows can break the sample mean.
+df.sample(n=100, random_state=1)	Simple random sample without replacement	OK.
+round(N * len(group) / len(df))	Proportional share for each species	OK, but rounding can give 101 rows (it did in my test).
+pd.concat(parts)	Joins the species samples	OK.
+value_counts(normalize=True)	Compares sample and population proportions	OK. Good evidence that stratification worked.
+Practical 4
+Line	What it does	Verdict
+np.random.seed(42)	Makes results repeatable	Added.
+np.random.exponential(scale=2.0, ...)	Skewed population with mean 2	OK.
+np.random.choice(population, size=30)	Draws one sample of 30	Changed. Your PDFs drew a new exponential sample and ignored the population array; now both agree.
+np.mean(sample)	Mean of each sample	OK.
+histplot(..., kde=True)	Left skewed, right bell-shaped	OK. Prints mean and standard deviation as proof.
+Practical 5
+Line	What it does	Verdict
+column finder	Finds the petal length column	Added. Different Iris CSVs spell it differently.
+np.random.choice(data, len(data), replace=True)	One bootstrap resample	OK. Same size as the data, with replacement.
+5000 repetitions	5000 bootstrap means	OK.
+np.percentile(boot_means, [2.5, 97.5])	95% percentile confidence interval	OK.
+axvline	Marks CI limits and the observed mean	OK.
+Practical 6
+Line	What it does	Verdict
+np.random.normal(loc=50, scale=10, ...)	Made-up data	Removed. This was the serious error: it ignored Iris completely.
+data = df[col]...	Real Iris petal length	Fixed.
+np.mean(data)	MLE of the mean	OK.
+np.mean((data - mu) ** 2)	MLE of the variance, divides by n	OK. Not ddof=1.
+unused scipy norm import	Not needed	Removed.
+Practical 7
+Line	What it does	Verdict
+df[["Age", "EstimatedSalary"]]	The two clustering features	OK.
+StandardScaler().fit_transform	Mean 0, standard deviation 1	OK. Without it salary dominates the distance.
+KMeans(n_clusters=3, n_init=10, random_state=42)	Fits and labels clusters	Fixed. Your longer PDF fitted this twice.
+plt.scatter(..., c=Cluster)	Colours points by cluster	OK.
+groupby("Cluster").mean()	Profiles each cluster	OK.
+ 
+Part C: Viva questions and answers
+Practical 1
+Q: What does a correlation coefficient measure?
+A: The strength and direction of the linear relationship between two numeric variables, from -1 to +1. Zero means no linear relationship.
+Q: Why select only numeric columns?
+A: corr() needs numbers. Text columns such as IDs or names cannot be correlated.
+Q: What does a histogram show?
+A: The distribution of one variable: its shape, spread, skew and peaks.
+Q: Does high correlation mean causation?
+A: No. Two variables can move together without one causing the other.
+Q: What do the heatmap colours mean?
+A: With coolwarm, red is a positive correlation and blue is negative. annot=True prints the value in each cell.
+Practical 2
+Q: Why drop duplicate rows?
+A: Duplicates count the same customer twice and bias averages and counts.
+Q: What does errors="coerce" do?
+A: Values that cannot be converted, like "XXXX", become NaN instead of raising an error.
+Q: Why fill with the median instead of the mean?
+A: The median is not pulled by outliers. Use mode for categorical columns.
+Q: Label encoding or one-hot encoding?
+A: Label encoding gives integer codes, fine for binary or ordered categories. One-hot suits unordered categories with many values, because integers would imply a false order.
+Q: How does a box plot show outliers?
+A: Points beyond Q1 - 1.5 x IQR or Q3 + 1.5 x IQR are drawn as individual dots.
+Q: Why parse dates?
+A: Text dates cannot be sorted or subtracted. datetime lets you extract year and month and compute durations.
+Practical 3
+Q: Simple versus stratified sampling?
+A: In simple random sampling every row has an equal chance. In stratified sampling you split the data into groups (strata) and sample from each group, usually in proportion to its size.
+Q: Why stratify penguins by species?
+A: Body mass differs a lot between species, so stratifying guarantees every species is represented and usually gives a more stable estimate.
+Q: What is random_state?
+A: A seed that makes the random sample repeatable.
+Q: Why could the stratified sample have 101 rows?
+A: Each species count is rounded separately, and the rounded numbers can add up to slightly more or less than 100.
+Q: Is stratified always more accurate?
+A: Usually closer to the population mean, but one random draw can still be off, so say 'usually'.
+Practical 4
+Q: State the Central Limit Theorem.
+A: For a large enough sample size, the distribution of sample means is approximately normal with mean mu and standard deviation sigma / sqrt(n), whatever the shape of the population (finite variance).
+Q: Why use an exponential distribution?
+A: It is clearly right-skewed, so the move to a bell shape shows the theorem working.
+Q: What are the expected values here?
+A: Mean about 2 and standard deviation of sample means about 2 / sqrt(30) = 0.365.
+Q: What happens if the sample size grows?
+A: The distribution of means becomes narrower and closer to normal.
+Q: Why n = 30?
+A: A common rule of thumb for 'large enough'. Very skewed data may need more.
+Practical 5
+Q: What is bootstrap resampling?
+A: Repeatedly resampling the observed data with replacement to estimate the sampling distribution of a statistic.
+Q: Why replace=True?
+A: Without replacement every resample would be the original data in a different order. Replacement lets some values repeat and others drop out.
+Q: Why is each resample as large as the data?
+A: So the variability mimics real sampling from a dataset of that size.
+Q: How is the 95% CI found?
+A: Take the 2.5th and 97.5th percentiles of the 5000 bootstrap means.
+Q: Main advantage?
+A: No assumption about the population distribution, and it works for statistics with no simple formula.
+Practical 6
+Q: What is maximum likelihood estimation?
+A: Choosing the parameter values that make the observed data most probable.
+Q: Give the normal MLE formulas.
+A: mu-hat = (1/n) sum x. sigma-squared-hat = (1/n) sum (x - mu-hat)^2.
+Q: Why divide by n and not n - 1?
+A: The MLE variance is slightly biased. n - 1 gives the unbiased sample variance. The gap is tiny for large n.
+Q: Why use log-likelihood?
+A: It turns a product of probabilities into a sum, which is easier to differentiate and avoids numerical underflow.
+Q: What assumption did you make?
+A: That petal length follows a normal distribution.
+Practical 7
+Q: What is K-Means?
+A: An unsupervised algorithm. It assigns each point to the nearest centroid, recomputes the centroids, and repeats until stable, minimising within-cluster distance.
+Q: Why scale the features?
+A: Salary is in tens of thousands and age in tens. Without scaling, distance depends almost only on salary.
+Q: How do you choose k?
+A: Elbow method or silhouette score. k = 3 here was chosen, not proven optimal.
+Q: What do n_init and random_state do?
+A: n_init runs K-Means from several random starts and keeps the best. random_state makes it repeatable.
+Q: Is Purchased used for clustering?
+A: No. Clustering is unsupervised. Purchased is only used afterwards to describe each cluster.
